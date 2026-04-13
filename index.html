@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Python Tortuga – Clase 1 | Profe Elena Rivera Quiroga</title>
+<title>Python Tortuga – Clase 1 | Profe Selena Rivera Quiroga</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f0;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:20px;}
-.app{width:100%;max-width:900px;border-radius:14px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);}
+.app{width:100%;max-width:920px;border-radius:14px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);}
 .header{background:#0F6E56;padding:14px 20px;display:flex;align-items:center;gap:12px;}
 .header-icon{width:38px;height:38px;background:rgba(255,255,255,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;}
 .header h1{color:#fff;font-size:18px;font-weight:600;}
@@ -65,6 +65,7 @@ textarea.ced{flex:1;min-height:220px;padding:12px;font-family:'Courier New',mono
 .btn-run:hover{background:#0F6E56;}
 .btn-send{background:#185FA5;color:#fff;border-color:#0C447C;margin-left:auto;}
 .btn-send:hover{background:#0C447C;}
+.btn-send:disabled{opacity:0.5;cursor:not-allowed;}
 .sbar{padding:5px 14px;font-size:11px;min-height:26px;display:flex;align-items:center;background:#f5f7f5;border-top:1px solid #dde8dd;color:#888;}
 .s-ok{color:#0F6E56;font-weight:600;}
 .s-err{color:#A32D2D;font-weight:600;}
@@ -84,17 +85,21 @@ textarea.ced{flex:1;min-height:220px;padding:12px;font-family:'Courier New',mono
 .cmd strong{display:block;font-size:12px;color:#0F6E56;font-weight:700;font-family:'Courier New',monospace;margin-bottom:2px;}
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.45);display:none;align-items:center;justify-content:center;z-index:999;}
 .modal-bg.open{display:flex;}
-.modal{background:#fff;border-radius:12px;padding:22px;max-width:320px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.18);}
+.modal{background:#fff;border-radius:12px;padding:22px;max-width:340px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.18);}
 .modal h2{font-size:15px;font-weight:700;margin-bottom:8px;color:#222;}
 .modal p{font-size:13px;color:#555;line-height:1.5;margin-bottom:16px;}
 .modal-btns{display:flex;gap:8px;justify-content:flex-end;}
+.send-status{margin-top:10px;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:600;display:none;text-align:center;}
+.send-ok{background:#E1F5EE;color:#085041;display:block;}
+.send-err{background:#FCEBEB;color:#A32D2D;display:block;}
+.send-loading{background:#E6F1FB;color:#0C447C;display:block;}
 </style>
 </head>
 <body>
 <div class="app">
 <div class="header">
   <div class="header-icon">🐢</div>
-  <div><h1>Python Tortuga – Clase 1</h1><p>Profe Elena Rivera Quiroga</p></div>
+  <div><h1>Python Tortuga – Clase 1</h1><p>Profe Selena Rivera Quiroga</p></div>
 </div>
 <div class="nav">
   <div class="nav-tab active" onclick="switchPage('lab')">Laboratorio</div>
@@ -144,9 +149,9 @@ textarea.ced{flex:1;min-height:220px;padding:12px;font-family:'Courier New',mono
       <div class="maze-result r-neutral" id="mazeResult">Ejecuta tu codigo para ver la tortuga en el laberinto</div>
     </div>
     <div class="ctrls">
-      <button class="btn btn-run" onclick="runCode()">▶ Ejecutar</button>
+      <button class="btn btn-run" onclick="runCode()">&#9654; Ejecutar</button>
       <button class="btn" onclick="clearAll()">Limpiar</button>
-      <button class="btn btn-send" onclick="confirmSend()">Enviar tarea</button>
+      <button class="btn btn-send" id="sendBtn" onclick="confirmSend()">&#9993; Enviar tarea a la profe Selena</button>
     </div>
     <div class="sbar" id="sbar">Escribe tu codigo y presiona Ejecutar</div>
   </div>
@@ -189,57 +194,287 @@ textarea.ced{flex:1;min-height:220px;padding:12px;font-family:'Courier New',mono
 </div>
 </div>
 
+<!-- MODAL CONFIRMACION -->
 <div class="modal-bg" id="modalBg">
   <div class="modal">
-    <h2>Enviar tarea</h2>
+    <h2>&#9993; Enviar tarea</h2>
     <p id="modalMsg"></p>
-    <div class="modal-btns">
+    <div id="sendStatus" class="send-status"></div>
+    <div class="modal-btns" id="modalBtns">
       <button class="btn" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-send" onclick="doSend()">Si, enviar</button>
+      <button class="btn btn-send" id="confirmSendBtn" onclick="doSend()">Si, enviar</button>
     </div>
   </div>
 </div>
 
+<!-- EmailJS SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script>
+// =====================================================
+// CONFIGURACION EMAILJS
+// Para activar el envio real sigue estos pasos:
+// 1. Ve a https://www.emailjs.com y crea cuenta gratis
+// 2. Crea un "Email Service" conectado a tu Gmail
+// 3. Crea un "Email Template" con estas variables:
+//    {{student_name}}, {{student_grade}}, {{level}},
+//    {{completed}}, {{code}}, {{to_email}}
+// 4. Reemplaza los tres valores de abajo con los tuyos
+// =====================================================
+const EMAILJS_PUBLIC_KEY  = 'TU_PUBLIC_KEY';
+const EMAILJS_SERVICE_ID  = 'TU_SERVICE_ID';
+const EMAILJS_TEMPLATE_ID = 'TU_TEMPLATE_ID';
+const PROFE_EMAIL = 'profeselenariveraquiroga@gmail.com';
+
+const emailjsReady = (EMAILJS_PUBLIC_KEY !== 'TU_PUBLIC_KEY');
+if(emailjsReady){
+  emailjs.init({publicKey: EMAILJS_PUBLIC_KEY});
+}
+
 const CELL=40,COLS=11,ROWS=9,OX=8,OY=8;
 const WALL=1,PATH=0,START=2,GOAL=3;
 const grid=[[1,1,1,1,1,1,1,1,1,1,1],[1,2,0,0,1,0,0,0,1,0,1],[1,0,1,0,1,0,1,0,0,0,1],[1,0,1,0,0,0,1,1,1,0,1],[1,0,1,1,1,0,0,0,1,0,1],[1,0,0,0,1,1,1,0,1,0,1],[1,1,1,0,0,0,1,0,0,0,1],[1,0,0,0,1,0,0,0,1,3,1],[1,1,1,1,1,1,1,1,1,1,1]];
+
 const LEVELS=[
   {name:'Nivel 1 – Explorar movimientos',desc:'Haz que la tortuga avance, retroceda y gire. Explora sin miedo! Prueba cambiar los numeros.',code:'# Nivel 1: Explorar movimientos\n# Escribe tus instrucciones aqui\n# Puedes usar: forward(), backward(), left(), right()\n\n'},
   {name:'Nivel 2 – Cuadrado',desc:'Combina avanzar y girar 90 grados para dibujar un cuadrado. Repite 4 veces con: for i in range(4):',code:'# Nivel 2: Cuadrado\n# Pista: 4 lados iguales, giro de 90 grados\n\n'},
-  {name:'Nivel 3 – Triangulo y hexagono',desc:'Dibuja un triangulo (3 lados, giro 120) y un hexagono (6 lados, giro 60). Usa color() para agregar colores!',code:'# Nivel 3: Triangulo y hexagono\n# Pista: triangulo gira 120, hexagono gira 60\n\n'},
-  {name:'Nivel 4 – Lapiz arriba y abajo',desc:'Usa penup() para moverte sin dibujar y pendown() para volver a dibujar. Crea lineas separadas!',code:'# Nivel 4: Lineas invisibles\n# Usa penup() y pendown()\n\n'},
-  {name:'Nivel 5 – Laberinto',desc:'El laberinto aparece al ejecutar. Usa forward(40), backward(40), left(90), right(90). Cada casilla = 40 pasos. Llega a la estrella!',code:'# Nivel 5: Laberinto\n# La tortuga comienza en la casilla verde (INI)\n# Cada casilla mide 40 pasos\n# Usa: forward(40), backward(40), left(90), right(90)\n\n'},
-  {name:'Tarea – Dibujo libre',desc:'Crea tu propio dibujo usando figuras, colores y lineas invisibles. Ideas: casa, robot, camino... se creativo!',code:'# Tarea: Mi dibujo libre\n# Usa todo lo que aprendiste hoy!\n# Incluye: figuras, colores y lineas invisibles\n\n'},
+  {name:'Nivel 3 – Triangulo y hexagono',desc:'Dibuja un triangulo (3 lados, giro 120) y un hexagono (6 lados, giro 60). Usa color() para colores!',code:'# Nivel 3: Triangulo y hexagono\n# Pista: triangulo gira 120, hexagono gira 60\n\n'},
+  {name:'Nivel 4 – Lapiz arriba y abajo',desc:'Usa penup() para moverte sin dibujar y pendown() para volver a dibujar.',code:'# Nivel 4: Lineas invisibles\n# Usa penup() y pendown()\n\n'},
+  {name:'Nivel 5 – Laberinto',desc:'El laberinto aparece al ejecutar. Usa forward(40), left(90), right(90). Cada casilla = 40 pasos. Llega a la estrella!',code:'# Nivel 5: Laberinto\n# La tortuga comienza en la casilla verde (INI)\n# Cada casilla mide 40 pasos\n# Usa: forward(40), backward(40), left(90), right(90)\n\n'},
+  {name:'Tarea – Dibujo libre',desc:'Crea tu propio dibujo usando figuras, colores y lineas invisibles. Ideas: casa, robot, camino...',code:'# Tarea: Mi dibujo libre\n# Usa todo lo que aprendiste hoy!\n\n'},
 ];
+
 let curLevel=0,completed=new Set(),turtle={col:1,row:1,angle:0},mSteps=0,mazeWon=false;
 let turtleState={x:0,y:0,angle:-90,drawing:true,color:'black',width:2},plainCmds=[];
 const CW=460,CH=320;
-function updateProgress(){const n=completed.size;document.getElementById('progText').textContent=n+' de 6';document.getElementById('pbarFill').style.width=Math.round((n/6)*100)+'%';for(let i=0;i<6;i++){const chk=document.getElementById('chk'+i),btn=document.getElementById('lb'+i);if(completed.has(i)){chk.classList.add('show');btn.classList.add('done');}else{chk.classList.remove('show');btn.classList.remove('done');}}}
+
+function updateProgress(){
+  const n=completed.size;
+  document.getElementById('progText').textContent=n+' de 6';
+  document.getElementById('pbarFill').style.width=Math.round((n/6)*100)+'%';
+  for(let i=0;i<6;i++){
+    const chk=document.getElementById('chk'+i),btn=document.getElementById('lb'+i);
+    if(completed.has(i)){chk.classList.add('show');btn.classList.add('done');}
+    else{chk.classList.remove('show');btn.classList.remove('done');}
+  }
+}
 function markComplete(idx){if(!completed.has(idx)){completed.add(idx);updateProgress();}}
-function showWinBanner(msg,sub){const b=document.getElementById('winBanner');document.getElementById('winMsg').textContent=msg;document.getElementById('winSub').textContent=sub||'';b.classList.add('show');setTimeout(()=>b.classList.remove('show'),4000);}
-function switchPage(p){document.querySelectorAll('.nav-tab').forEach((t,i)=>t.classList.toggle('active',(p==='lab'&&i===0)||(p==='teoria'&&i===1)));document.getElementById('labPage').style.display=p==='lab'?'grid':'none';document.getElementById('teoriaPage').classList.toggle('show',p==='teoria');}
-function loadLevel(idx){curLevel=idx;document.querySelectorAll('.lvlbtn').forEach((b,i)=>b.classList.toggle('active',i===idx));document.getElementById('ced').value=LEVELS[idx].code;document.getElementById('iTitle').textContent=LEVELS[idx].name;document.getElementById('iText').textContent=LEVELS[idx].desc;document.getElementById('etabCanvas').textContent=idx===4?'Laberinto':'Dibujo';document.getElementById('winBanner').classList.remove('show');clearAll();}
-function switchEtab(t){document.querySelectorAll('.etab').forEach((el,i)=>el.classList.toggle('active',(t==='code'&&i===0)||(t==='canvas'&&i===1)));document.getElementById('codeTab').style.display=t==='code'?'flex':'none';if(curLevel===4){document.getElementById('mazeTab').style.display=t==='canvas'?'flex':'none';const pw=document.getElementById('plainCanvasWrap');if(pw)pw.style.display='none';}else{document.getElementById('mazeTab').style.display='none';const pw=document.getElementById('plainCanvasWrap');if(pw)pw.style.display=t==='canvas'?'flex':'none';}}
+function showWinBanner(msg,sub){
+  const b=document.getElementById('winBanner');
+  document.getElementById('winMsg').textContent=msg;
+  document.getElementById('winSub').textContent=sub||'';
+  b.classList.add('show');
+  setTimeout(()=>b.classList.remove('show'),4000);
+}
+function switchPage(p){
+  document.querySelectorAll('.nav-tab').forEach((t,i)=>t.classList.toggle('active',(p==='lab'&&i===0)||(p==='teoria'&&i===1)));
+  document.getElementById('labPage').style.display=p==='lab'?'grid':'none';
+  document.getElementById('teoriaPage').classList.toggle('show',p==='teoria');
+}
+function loadLevel(idx){
+  curLevel=idx;
+  document.querySelectorAll('.lvlbtn').forEach((b,i)=>b.classList.toggle('active',i===idx));
+  document.getElementById('ced').value=LEVELS[idx].code;
+  document.getElementById('iTitle').textContent=LEVELS[idx].name;
+  document.getElementById('iText').textContent=LEVELS[idx].desc;
+  document.getElementById('etabCanvas').textContent=idx===4?'Laberinto':'Dibujo';
+  document.getElementById('winBanner').classList.remove('show');
+  clearAll();
+}
+function switchEtab(t){
+  document.querySelectorAll('.etab').forEach((el,i)=>el.classList.toggle('active',(t==='code'&&i===0)||(t==='canvas'&&i===1)));
+  document.getElementById('codeTab').style.display=t==='code'?'flex':'none';
+  if(curLevel===4){
+    document.getElementById('mazeTab').style.display=t==='canvas'?'flex':'none';
+    const pw=document.getElementById('plainCanvasWrap');if(pw)pw.style.display='none';
+  }else{
+    document.getElementById('mazeTab').style.display='none';
+    const pw=document.getElementById('plainCanvasWrap');if(pw)pw.style.display=t==='canvas'?'flex':'none';
+  }
+}
 function setSbar(msg,type){const el=document.getElementById('sbar');el.textContent=msg;el.className='sbar'+(type?' s-'+type:'');}
 function addLog(msg){const el=document.getElementById('olog');el.textContent+=msg+'\n';el.scrollTop=el.scrollHeight;}
 function clearLog(){document.getElementById('olog').textContent='';}
 function toRad(d){return d*Math.PI/180;}
 function isWall(c,r){return r<0||r>=ROWS||c<0||c>=COLS||grid[r][c]===WALL;}
-function drawMaze(highlight){const canvas=document.getElementById('mazeCanvas'),ctx=canvas.getContext('2d');ctx.clearRect(0,0,420,340);for(let r=0;r<ROWS;r++){for(let c=0;c<COLS;c++){const x=OX+c*CELL,y=OY+r*CELL,v=grid[r][c];if(v===WALL){ctx.fillStyle='#2C4A3E';ctx.fillRect(x,y,CELL,CELL);ctx.fillStyle='#3a6b52';ctx.fillRect(x+1,y+1,CELL-2,CELL-2);}else{ctx.fillStyle='#f8fdf8';ctx.fillRect(x,y,CELL,CELL);ctx.strokeStyle='#ddeedd';ctx.lineWidth=0.5;ctx.strokeRect(x,y,CELL,CELL);}if(v===START){ctx.fillStyle='#C0DD97';ctx.fillRect(x+2,y+2,CELL-4,CELL-4);ctx.fillStyle='#3B6D11';ctx.font='bold 9px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('INI',x+CELL/2,y+CELL/2);}if(v===GOAL){ctx.fillStyle='#FAEEDA';ctx.fillRect(x+2,y+2,CELL-4,CELL-4);drawStar(ctx,x+CELL/2,y+CELL/2,13,5,'#BA7517');}}}if(highlight&&highlight.length>1){ctx.strokeStyle='rgba(29,158,117,0.3)';ctx.lineWidth=3;for(let i=1;i<highlight.length;i++){const a=highlight[i-1],b=highlight[i];ctx.beginPath();ctx.moveTo(OX+a.col*CELL+CELL/2,OY+a.row*CELL+CELL/2);ctx.lineTo(OX+b.col*CELL+CELL/2,OY+b.row*CELL+CELL/2);ctx.stroke();}}drawTurtleShape(ctx,turtle.col,turtle.row);}
-function drawStar(ctx,cx,cy,r,pts,color){ctx.beginPath();for(let i=0;i<pts*2;i++){const rad=(i*Math.PI/pts)-Math.PI/2,dist=i%2===0?r:r*.42;i===0?ctx.moveTo(cx+Math.cos(rad)*dist,cy+Math.sin(rad)*dist):ctx.lineTo(cx+Math.cos(rad)*dist,cy+Math.sin(rad)*dist);}ctx.closePath();ctx.fillStyle=color;ctx.fill();}
-function drawTurtleShape(ctx,c,r){const x=OX+c*CELL+CELL/2,y=OY+r*CELL+CELL/2;ctx.save();ctx.translate(x,y);ctx.beginPath();ctx.arc(0,0,12,0,Math.PI*2);ctx.fillStyle='#1D9E75';ctx.fill();ctx.strokeStyle='#085041';ctx.lineWidth=1.5;ctx.stroke();ctx.beginPath();ctx.arc(0,-13,4,0,Math.PI*2);ctx.fillStyle='#1D9E75';ctx.fill();ctx.stroke();[[-12,-7],[-12,3],[12,-7],[12,3]].forEach(([lx,ly])=>{ctx.beginPath();ctx.arc(lx,ly,4,0,Math.PI*2);ctx.fillStyle='#1D9E75';ctx.fill();ctx.stroke();});ctx.beginPath();ctx.arc(-3,-3,2.5,0,Math.PI*2);ctx.fillStyle='#085041';ctx.fill();ctx.beginPath();ctx.arc(3,-3,2.5,0,Math.PI*2);ctx.fillStyle='#085041';ctx.fill();ctx.restore();}
-function execMazeLine(line,path){const fwd=line.match(/^(?:t\.)?forward\((\d+(?:\.\d+)?)\)/),bwd=line.match(/^(?:t\.)?backward\((\d+(?:\.\d+)?)\)/),lft=line.match(/^(?:t\.)?left\((\d+(?:\.\d+)?)\)/),rgt=line.match(/^(?:t\.)?right\((\d+(?:\.\d+)?)\)/);if(!line||line.startsWith('#'))return null;if(fwd){const steps=Math.round(parseFloat(fwd[1])/CELL);for(let s=0;s<steps;s++){let dc=0,dr=0;const a=((turtle.angle%360)+360)%360;if(a===0)dr=-1;else if(a===90)dc=1;else if(a===180)dr=1;else if(a===270)dc=-1;const nc=turtle.col+dc,nr=turtle.row+dr;if(isWall(nc,nr))return{msg:'Choco con una pared! Revisa tus giros y distancias.'};turtle.col=nc;turtle.row=nr;mSteps++;path.push({col:turtle.col,row:turtle.row});if(grid[nr][nc]===GOAL)mazeWon=true;}}else if(bwd){const steps=Math.round(parseFloat(bwd[1])/CELL);for(let s=0;s<steps;s++){let dc=0,dr=0;const a=((turtle.angle%360)+360)%360;if(a===0)dr=1;else if(a===90)dc=-1;else if(a===180)dr=-1;else if(a===270)dc=1;const nc=turtle.col+dc,nr=turtle.row+dr;if(isWall(nc,nr))return{msg:'Choco con una pared retrocediendo!'};turtle.col=nc;turtle.row=nr;mSteps++;path.push({col:turtle.col,row:turtle.row});if(grid[nr][nc]===GOAL)mazeWon=true;}}else if(lft){turtle.angle-=parseFloat(lft[1]);}else if(rgt){turtle.angle+=parseFloat(rgt[1]);}else if(!line.match(/^(?:import|t\s*=|t\.speed|t\.shape)/))return{msg:'Comando no reconocido: "'+line+'". Usa forward, backward, left o right.'};return null;}
-function parseMaze(code){turtle={col:1,row:1,angle:0};mSteps=0;mazeWon=false;const path=[{col:1,row:1}],errors=[],lines=code.split('\n');for(let i=0;i<lines.length;i++){const raw=lines[i].trim();if(!raw||raw.startsWith('#')||raw.match(/^(?:import turtle|t\s*=\s*turtle|t\.speed|t\.shape)/))continue;const forM=raw.match(/^for\s+\w+\s+in\s+range\((\d+)\)\s*:/);if(forM){const times=parseInt(forM[1]),body=[];let j=i+1;while(j<lines.length&&(lines[j].startsWith('    ')||lines[j].startsWith('\t'))){body.push(lines[j].trim());j++;}for(let t=0;t<times;t++){for(const bl of body){if(!bl||bl.startsWith('#'))continue;const e=execMazeLine(bl,path);if(e)errors.push(e);}}i=j-1;continue;}const e=execMazeLine(raw,path);if(e)errors.push(e);}document.getElementById('mSteps').textContent=mSteps;return{path,errors};}
+
+function drawMaze(highlight){
+  const canvas=document.getElementById('mazeCanvas'),ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,420,340);
+  for(let r=0;r<ROWS;r++){
+    for(let c=0;c<COLS;c++){
+      const x=OX+c*CELL,y=OY+r*CELL,v=grid[r][c];
+      if(v===WALL){ctx.fillStyle='#2C4A3E';ctx.fillRect(x,y,CELL,CELL);ctx.fillStyle='#3a6b52';ctx.fillRect(x+1,y+1,CELL-2,CELL-2);}
+      else{ctx.fillStyle='#f8fdf8';ctx.fillRect(x,y,CELL,CELL);ctx.strokeStyle='#ddeedd';ctx.lineWidth=0.5;ctx.strokeRect(x,y,CELL,CELL);}
+      if(v===START){ctx.fillStyle='#C0DD97';ctx.fillRect(x+2,y+2,CELL-4,CELL-4);ctx.fillStyle='#3B6D11';ctx.font='bold 9px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('INI',x+CELL/2,y+CELL/2);}
+      if(v===GOAL){ctx.fillStyle='#FAEEDA';ctx.fillRect(x+2,y+2,CELL-4,CELL-4);drawStar(ctx,x+CELL/2,y+CELL/2,13,5,'#BA7517');}
+    }
+  }
+  if(highlight&&highlight.length>1){
+    ctx.strokeStyle='rgba(29,158,117,0.3)';ctx.lineWidth=3;
+    for(let i=1;i<highlight.length;i++){
+      const a=highlight[i-1],b=highlight[i];
+      ctx.beginPath();ctx.moveTo(OX+a.col*CELL+CELL/2,OY+a.row*CELL+CELL/2);ctx.lineTo(OX+b.col*CELL+CELL/2,OY+b.row*CELL+CELL/2);ctx.stroke();
+    }
+  }
+  drawTurtleShape(ctx,turtle.col,turtle.row);
+}
+function drawStar(ctx,cx,cy,r,pts,color){
+  ctx.beginPath();
+  for(let i=0;i<pts*2;i++){const rad=(i*Math.PI/pts)-Math.PI/2,dist=i%2===0?r:r*.42;i===0?ctx.moveTo(cx+Math.cos(rad)*dist,cy+Math.sin(rad)*dist):ctx.lineTo(cx+Math.cos(rad)*dist,cy+Math.sin(rad)*dist);}
+  ctx.closePath();ctx.fillStyle=color;ctx.fill();
+}
+function drawTurtleShape(ctx,c,r){
+  const x=OX+c*CELL+CELL/2,y=OY+r*CELL+CELL/2;
+  ctx.save();ctx.translate(x,y);
+  ctx.beginPath();ctx.arc(0,0,12,0,Math.PI*2);ctx.fillStyle='#1D9E75';ctx.fill();ctx.strokeStyle='#085041';ctx.lineWidth=1.5;ctx.stroke();
+  ctx.beginPath();ctx.arc(0,-13,4,0,Math.PI*2);ctx.fillStyle='#1D9E75';ctx.fill();ctx.stroke();
+  [[-12,-7],[-12,3],[12,-7],[12,3]].forEach(([lx,ly])=>{ctx.beginPath();ctx.arc(lx,ly,4,0,Math.PI*2);ctx.fillStyle='#1D9E75';ctx.fill();ctx.stroke();});
+  ctx.beginPath();ctx.arc(-3,-3,2.5,0,Math.PI*2);ctx.fillStyle='#085041';ctx.fill();
+  ctx.beginPath();ctx.arc(3,-3,2.5,0,Math.PI*2);ctx.fillStyle='#085041';ctx.fill();
+  ctx.restore();
+}
+function execMazeLine(line,path){
+  const fwd=line.match(/^(?:t\.)?forward\((\d+(?:\.\d+)?)\)/),bwd=line.match(/^(?:t\.)?backward\((\d+(?:\.\d+)?)\)/),lft=line.match(/^(?:t\.)?left\((\d+(?:\.\d+)?)\)/),rgt=line.match(/^(?:t\.)?right\((\d+(?:\.\d+)?)\)/);
+  if(!line||line.startsWith('#')||line.match(/^(?:import|t\s*=|t\.speed|t\.shape)/))return null;
+  if(fwd){const steps=Math.round(parseFloat(fwd[1])/CELL);for(let s=0;s<steps;s++){let dc=0,dr=0;const a=((turtle.angle%360)+360)%360;if(a===0)dr=-1;else if(a===90)dc=1;else if(a===180)dr=1;else if(a===270)dc=-1;const nc=turtle.col+dc,nr=turtle.row+dr;if(isWall(nc,nr))return{msg:'Choco con una pared! Revisa tus giros y distancias.'};turtle.col=nc;turtle.row=nr;mSteps++;path.push({col:turtle.col,row:turtle.row});if(grid[nr][nc]===GOAL)mazeWon=true;}}
+  else if(bwd){const steps=Math.round(parseFloat(bwd[1])/CELL);for(let s=0;s<steps;s++){let dc=0,dr=0;const a=((turtle.angle%360)+360)%360;if(a===0)dr=1;else if(a===90)dc=-1;else if(a===180)dr=-1;else if(a===270)dc=1;const nc=turtle.col+dc,nr=turtle.row+dr;if(isWall(nc,nr))return{msg:'Choco con una pared retrocediendo!'};turtle.col=nc;turtle.row=nr;mSteps++;path.push({col:turtle.col,row:turtle.row});if(grid[nr][nc]===GOAL)mazeWon=true;}}
+  else if(lft){turtle.angle-=parseFloat(lft[1]);}
+  else if(rgt){turtle.angle+=parseFloat(rgt[1]);}
+  else return{msg:'Comando no reconocido: "'+line+'"'};
+  return null;
+}
+function parseMaze(code){
+  turtle={col:1,row:1,angle:0};mSteps=0;mazeWon=false;
+  const path=[{col:1,row:1}],errors=[],lines=code.split('\n');
+  for(let i=0;i<lines.length;i++){
+    const raw=lines[i].trim();
+    if(!raw||raw.startsWith('#')||raw.match(/^(?:import turtle|t\s*=\s*turtle|t\.speed|t\.shape)/))continue;
+    const forM=raw.match(/^for\s+\w+\s+in\s+range\((\d+)\)\s*:/);
+    if(forM){const times=parseInt(forM[1]),body=[];let j=i+1;while(j<lines.length&&(lines[j].startsWith('    ')||lines[j].startsWith('\t'))){body.push(lines[j].trim());j++;}for(let t=0;t<times;t++){for(const bl of body){if(!bl||bl.startsWith('#'))continue;const e=execMazeLine(bl,path);if(e)errors.push(e);}}i=j-1;continue;}
+    const e=execMazeLine(raw,path);if(e)errors.push(e);
+  }
+  document.getElementById('mSteps').textContent=mSteps;
+  return{path,errors};
+}
 function resetTurtleState(){turtleState={x:CW/2,y:CH/2,angle:-90,drawing:true,color:'black',width:2};plainCmds=[];}
-function execPlainLine(line){const fwd=line.match(/^(?:t\.)?forward\((\d+(?:\.\d+)?)\)/),bwd=line.match(/^(?:t\.)?backward\((\d+(?:\.\d+)?)\)/),lft=line.match(/^(?:t\.)?left\((\d+(?:\.\d+)?)\)/),rgt=line.match(/^(?:t\.)?right\((\d+(?:\.\d+)?)\)/),col=line.match(/^(?:t\.)?color\(["'](.+?)["']\)/),pu=line.match(/^(?:t\.)?(?:penup|up)\(\)/),pd=line.match(/^(?:t\.)?(?:pendown|down)\(\)/);if(!line||line.startsWith('#')||line.match(/^(?:import turtle|t\s*=\s*turtle|t\.speed|t\.shape)/))return null;if(fwd){const d=parseFloat(fwd[1]),nx=turtleState.x+Math.cos(toRad(turtleState.angle))*d,ny=turtleState.y+Math.sin(toRad(turtleState.angle))*d;plainCmds.push({x1:turtleState.x,y1:turtleState.y,x2:nx,y2:ny,drawing:turtleState.drawing,color:turtleState.color,width:turtleState.width});turtleState.x=nx;turtleState.y=ny;}else if(bwd){const d=parseFloat(bwd[1]),nx=turtleState.x-Math.cos(toRad(turtleState.angle))*d,ny=turtleState.y-Math.sin(toRad(turtleState.angle))*d;plainCmds.push({x1:turtleState.x,y1:turtleState.y,x2:nx,y2:ny,drawing:turtleState.drawing,color:turtleState.color,width:turtleState.width});turtleState.x=nx;turtleState.y=ny;}else if(lft){turtleState.angle-=parseFloat(lft[1]);}else if(rgt){turtleState.angle+=parseFloat(rgt[1]);}else if(col){turtleState.color=col[1];}else if(pu){turtleState.drawing=false;}else if(pd){turtleState.drawing=true;}else return{msg:'Comando no reconocido: "'+line+'"'};return null;}
-function ensurePlainCanvas(){if(!document.getElementById('plainCanvasWrap')){const div=document.createElement('div');div.id='plainCanvasWrap';div.style.cssText='display:none;flex:1;align-items:center;justify-content:center;background:#fff;padding:10px;';const cv=document.createElement('canvas');cv.id='plainCanvas';cv.width=CW;cv.height=CH;cv.style.cssText='border:1px solid #ddd;border-radius:6px;';div.appendChild(cv);document.getElementById('mazeTab').insertAdjacentElement('afterend',div);}}
-function renderPlainCanvas(){const cv=document.getElementById('plainCanvas');if(!cv)return;const ctx=cv.getContext('2d');ctx.clearRect(0,0,CW,CH);ctx.strokeStyle='#f0f0f0';ctx.lineWidth=0.5;for(let x=0;x<=CW;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,CH);ctx.stroke();}for(let y=0;y<=CH;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(CW,y);ctx.stroke();}for(const c of plainCmds){if(!c.drawing)continue;ctx.beginPath();ctx.moveTo(c.x1,c.y1);ctx.lineTo(c.x2,c.y2);ctx.strokeStyle=c.color;ctx.lineWidth=c.width;ctx.lineCap='round';ctx.stroke();}const ta=toRad(turtleState.angle);ctx.save();ctx.translate(turtleState.x,turtleState.y);ctx.rotate(ta+Math.PI/2);ctx.beginPath();ctx.moveTo(0,-11);ctx.lineTo(-6,7);ctx.lineTo(0,3);ctx.lineTo(6,7);ctx.closePath();ctx.fillStyle='#1D9E75';ctx.fill();ctx.strokeStyle='#085041';ctx.lineWidth=1;ctx.stroke();ctx.restore();}
-function runCode(){clearLog();const code=document.getElementById('ced').value;if(curLevel===4){const{path,errors}=parseMaze(code);drawMaze(path);switchEtab('canvas');const mr=document.getElementById('mazeResult');if(errors.length){mr.textContent='Error: '+errors[0].msg;mr.className='maze-result r-err';setSbar('Hay un error. Revisa tu codigo','err');addLog('Error: '+errors[0].msg);}else if(mazeWon){mr.textContent='¡Felicitaciones! Llegaste a la estrella en '+mSteps+' pasos!';mr.className='maze-result r-ok';setSbar('¡Completaste el laberinto!','ok');addLog('¡Ganaste! Meta alcanzada en '+mSteps+' pasos.');markComplete(4);showWinBanner('¡Excelente! Completaste el Nivel 5','Ahora puedes enviar tu tarea!');}else{mr.textContent='La tortuga avanzo '+mSteps+' pasos pero no llego a la estrella. Sigue intentando!';mr.className='maze-result r-neutral';setSbar('Sigue ajustando tu codigo','');addLog('Ejecutado: '+mSteps+' pasos. Meta no alcanzada aun.');}}else{resetTurtleState();ensurePlainCanvas();const lines=code.split('\n'),errors=[];for(let i=0;i<lines.length;i++){const raw=lines[i].trim();if(!raw||raw.startsWith('#'))continue;const forM=raw.match(/^for\s+\w+\s+in\s+range\((\d+)\)\s*:/);if(forM){const times=parseInt(forM[1]),body=[];let j=i+1;while(j<lines.length&&(lines[j].startsWith('    ')||lines[j].startsWith('\t'))){body.push(lines[j].trim());j++;}for(let t=0;t<times;t++){for(const bl of body){if(!bl||bl.startsWith('#'))continue;const e=execPlainLine(bl);if(e)errors.push(e);}}i=j-1;continue;}const e=execPlainLine(raw);if(e)errors.push(e);}renderPlainCanvas();switchEtab('canvas');if(!errors.length){setSbar('Codigo ejecutado correctamente','ok');addLog('Sin errores! Revisa tu dibujo.');if(plainCmds.length>0){markComplete(curLevel);showWinBanner('¡Muy bien! Completaste el '+LEVELS[curLevel].name,'Puedes continuar al siguiente nivel.');}}else{setSbar('Hay errores en el codigo','err');errors.forEach(e=>addLog('Error: '+e.msg));}}}
-function clearAll(){resetTurtleState();if(curLevel===4){turtle={col:1,row:1,angle:0};mSteps=0;mazeWon=false;document.getElementById('mSteps').textContent='0';const mr=document.getElementById('mazeResult');mr.textContent='Ejecuta tu codigo para ver la tortuga en el laberinto';mr.className='maze-result r-neutral';drawMaze([]);}else{const pw=document.getElementById('plainCanvasWrap');if(pw){pw.style.display='none';const cv=document.getElementById('plainCanvas');if(cv)cv.getContext('2d').clearRect(0,0,CW,CH);}}clearLog();document.getElementById('olog').textContent='Listo para ejecutar...';setSbar('');document.getElementById('winBanner').classList.remove('show');}
-function confirmSend(){const name=document.getElementById('sName').value.trim(),grade=document.getElementById('sGrade').value;if(!name||!grade){setSbar('Primero escribe tu nombre y selecciona tu grado','err');return;}document.getElementById('modalMsg').textContent='Vas a enviar tu tarea a la profe Elena como '+name+' de '+grade+'. Confirmas?';document.getElementById('modalBg').classList.add('open');}
+function execPlainLine(line){
+  const fwd=line.match(/^(?:t\.)?forward\((\d+(?:\.\d+)?)\)/),bwd=line.match(/^(?:t\.)?backward\((\d+(?:\.\d+)?)\)/),lft=line.match(/^(?:t\.)?left\((\d+(?:\.\d+)?)\)/),rgt=line.match(/^(?:t\.)?right\((\d+(?:\.\d+)?)\)/),col=line.match(/^(?:t\.)?color\(["'](.+?)["']\)/),pu=line.match(/^(?:t\.)?(?:penup|up)\(\)/),pd=line.match(/^(?:t\.)?(?:pendown|down)\(\)/);
+  if(!line||line.startsWith('#')||line.match(/^(?:import turtle|t\s*=\s*turtle|t\.speed|t\.shape)/))return null;
+  if(fwd){const d=parseFloat(fwd[1]),nx=turtleState.x+Math.cos(toRad(turtleState.angle))*d,ny=turtleState.y+Math.sin(toRad(turtleState.angle))*d;plainCmds.push({x1:turtleState.x,y1:turtleState.y,x2:nx,y2:ny,drawing:turtleState.drawing,color:turtleState.color,width:turtleState.width});turtleState.x=nx;turtleState.y=ny;}
+  else if(bwd){const d=parseFloat(bwd[1]),nx=turtleState.x-Math.cos(toRad(turtleState.angle))*d,ny=turtleState.y-Math.sin(toRad(turtleState.angle))*d;plainCmds.push({x1:turtleState.x,y1:turtleState.y,x2:nx,y2:ny,drawing:turtleState.drawing,color:turtleState.color,width:turtleState.width});turtleState.x=nx;turtleState.y=ny;}
+  else if(lft){turtleState.angle-=parseFloat(lft[1]);}
+  else if(rgt){turtleState.angle+=parseFloat(rgt[1]);}
+  else if(col){turtleState.color=col[1];}
+  else if(pu){turtleState.drawing=false;}
+  else if(pd){turtleState.drawing=true;}
+  else return{msg:'Comando no reconocido: "'+line+'"'};
+  return null;
+}
+function ensurePlainCanvas(){
+  if(!document.getElementById('plainCanvasWrap')){
+    const div=document.createElement('div');div.id='plainCanvasWrap';div.style.cssText='display:none;flex:1;align-items:center;justify-content:center;background:#fff;padding:10px;';
+    const cv=document.createElement('canvas');cv.id='plainCanvas';cv.width=CW;cv.height=CH;cv.style.cssText='border:1px solid #ddd;border-radius:6px;';
+    div.appendChild(cv);document.getElementById('mazeTab').insertAdjacentElement('afterend',div);
+  }
+}
+function renderPlainCanvas(){
+  const cv=document.getElementById('plainCanvas');if(!cv)return;
+  const ctx=cv.getContext('2d');ctx.clearRect(0,0,CW,CH);
+  ctx.strokeStyle='#f0f0f0';ctx.lineWidth=0.5;
+  for(let x=0;x<=CW;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,CH);ctx.stroke();}
+  for(let y=0;y<=CH;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(CW,y);ctx.stroke();}
+  for(const c of plainCmds){if(!c.drawing)continue;ctx.beginPath();ctx.moveTo(c.x1,c.y1);ctx.lineTo(c.x2,c.y2);ctx.strokeStyle=c.color;ctx.lineWidth=c.width;ctx.lineCap='round';ctx.stroke();}
+  const ta=toRad(turtleState.angle);ctx.save();ctx.translate(turtleState.x,turtleState.y);ctx.rotate(ta+Math.PI/2);
+  ctx.beginPath();ctx.moveTo(0,-11);ctx.lineTo(-6,7);ctx.lineTo(0,3);ctx.lineTo(6,7);ctx.closePath();ctx.fillStyle='#1D9E75';ctx.fill();ctx.strokeStyle='#085041';ctx.lineWidth=1;ctx.stroke();ctx.restore();
+}
+function runCode(){
+  clearLog();
+  const code=document.getElementById('ced').value;
+  if(curLevel===4){
+    const{path,errors}=parseMaze(code);drawMaze(path);switchEtab('canvas');
+    const mr=document.getElementById('mazeResult');
+    if(errors.length){mr.textContent='Error: '+errors[0].msg;mr.className='maze-result r-err';setSbar('Hay un error. Revisa tu codigo','err');addLog('Error: '+errors[0].msg);}
+    else if(mazeWon){mr.textContent='Felicitaciones! Llegaste a la estrella en '+mSteps+' pasos!';mr.className='maze-result r-ok';setSbar('Completaste el laberinto!','ok');addLog('Ganaste! Meta alcanzada en '+mSteps+' pasos.');markComplete(4);showWinBanner('Excelente! Completaste el Nivel 5','Ahora envia tu tarea a la profe Selena!');}
+    else{mr.textContent='La tortuga avanzo '+mSteps+' pasos pero no llego a la estrella. Sigue intentando!';mr.className='maze-result r-neutral';setSbar('Sigue ajustando tu codigo','');addLog('Ejecutado: '+mSteps+' pasos. Meta no alcanzada.');}
+  }else{
+    resetTurtleState();ensurePlainCanvas();
+    const lines=code.split('\n'),errors=[];
+    for(let i=0;i<lines.length;i++){
+      const raw=lines[i].trim();if(!raw||raw.startsWith('#'))continue;
+      const forM=raw.match(/^for\s+\w+\s+in\s+range\((\d+)\)\s*:/);
+      if(forM){const times=parseInt(forM[1]),body=[];let j=i+1;while(j<lines.length&&(lines[j].startsWith('    ')||lines[j].startsWith('\t'))){body.push(lines[j].trim());j++;}for(let t=0;t<times;t++){for(const bl of body){if(!bl||bl.startsWith('#'))continue;const e=execPlainLine(bl);if(e)errors.push(e);}}i=j-1;continue;}
+      const e=execPlainLine(raw);if(e)errors.push(e);
+    }
+    renderPlainCanvas();switchEtab('canvas');
+    if(!errors.length){setSbar('Codigo ejecutado correctamente','ok');addLog('Sin errores! Revisa tu dibujo.');if(plainCmds.length>0){markComplete(curLevel);showWinBanner('Muy bien! Completaste el '+LEVELS[curLevel].name,'Puedes continuar al siguiente nivel.');}}
+    else{setSbar('Hay errores en el codigo','err');errors.forEach(e=>addLog('Error: '+e.msg));}
+  }
+}
+function clearAll(){
+  resetTurtleState();
+  if(curLevel===4){turtle={col:1,row:1,angle:0};mSteps=0;mazeWon=false;document.getElementById('mSteps').textContent='0';const mr=document.getElementById('mazeResult');mr.textContent='Ejecuta tu codigo para ver la tortuga en el laberinto';mr.className='maze-result r-neutral';drawMaze([]);}
+  else{const pw=document.getElementById('plainCanvasWrap');if(pw){pw.style.display='none';const cv=document.getElementById('plainCanvas');if(cv)cv.getContext('2d').clearRect(0,0,CW,CH);}}
+  clearLog();document.getElementById('olog').textContent='Listo para ejecutar...';setSbar('');document.getElementById('winBanner').classList.remove('show');
+}
+function confirmSend(){
+  const name=document.getElementById('sName').value.trim(),grade=document.getElementById('sGrade').value;
+  if(!name||!grade){setSbar('Primero escribe tu nombre y selecciona tu grado','err');return;}
+  document.getElementById('modalMsg').textContent='Vas a enviar tu tarea a la profe Selena como '+name+' de '+grade+'. Confirmas?';
+  document.getElementById('sendStatus').className='send-status';
+  document.getElementById('sendStatus').textContent='';
+  document.getElementById('modalBtns').style.display='flex';
+  document.getElementById('modalBg').classList.add('open');
+}
 function closeModal(){document.getElementById('modalBg').classList.remove('open');}
-function doSend(){closeModal();const name=document.getElementById('sName').value.trim(),grade=document.getElementById('sGrade').value,code=document.getElementById('ced').value,level=LEVELS[curLevel].name,done=Array.from(completed).map(i=>LEVELS[i].name).join(', ')||'Ninguno aun';const body='Hola profe Elena,%0D%0A%0D%0ALe envio mi tarea de Python Tortuga.%0D%0A%0D%0ANombre: '+encodeURIComponent(name)+'%0D%0AGrado: '+encodeURIComponent(grade)+'%0D%0ANivel enviado: '+encodeURIComponent(level)+'%0D%0ANiveles completados: '+encodeURIComponent(done)+'%0D%0A%0D%0AMi codigo:%0D%0A%0D%0A'+encodeURIComponent(code)+'%0D%0A%0D%0AHasta la proxima clase!';const sub=encodeURIComponent('Tarea Python Tortuga - '+name+' - '+grade+' - '+level);const a=document.createElement('a');a.href='mailto:profeselenariveraquiroga@gmail.com?subject='+sub+'&body='+body;a.click();setSbar('Correo listo para enviar, '+name+'!','send');addLog('Tarea enviada: '+name+' ('+grade+') - '+level);markComplete(curLevel);}
+function doSend(){
+  const name=document.getElementById('sName').value.trim(),grade=document.getElementById('sGrade').value,code=document.getElementById('ced').value,level=LEVELS[curLevel].name,done=Array.from(completed).map(i=>LEVELS[i].name).join(', ')||'Ninguno aun';
+  const statusEl=document.getElementById('sendStatus');
+  const btnsEl=document.getElementById('modalBtns');
+  const confirmBtn=document.getElementById('confirmSendBtn');
+
+  if(!emailjsReady){
+    // Fallback: abrir cliente de correo local
+    const body='Hola profe Selena,%0D%0A%0D%0ALe envio mi tarea de Python Tortuga.%0D%0A%0D%0ANombre: '+encodeURIComponent(name)+'%0D%0AGrado: '+encodeURIComponent(grade)+'%0D%0ANivel enviado: '+encodeURIComponent(level)+'%0D%0ANiveles completados: '+encodeURIComponent(done)+'%0D%0A%0D%0AMi codigo:%0D%0A%0D%0A'+encodeURIComponent(code)+'%0D%0A%0D%0AHasta la proxima clase!';
+    const sub=encodeURIComponent('Tarea Python Tortuga - '+name+' - '+grade+' - '+level);
+    window.location.href='mailto:'+PROFE_EMAIL+'?subject='+sub+'&body='+body;
+    statusEl.textContent='Se abrio tu app de correo. Busca el mensaje y presiona Enviar.';
+    statusEl.className='send-status send-ok';
+    btnsEl.style.display='none';
+    markComplete(curLevel);
+    setSbar('Correo abierto para '+name,'send');
+    addLog('Tarea lista para enviar: '+name+' ('+grade+')');
+    return;
+  }
+
+  // Envio real con EmailJS
+  confirmBtn.disabled=true;
+  statusEl.textContent='Enviando...';
+  statusEl.className='send-status send-loading';
+  const params={
+    to_email: PROFE_EMAIL,
+    student_name: name,
+    student_grade: grade,
+    level: level,
+    completed: done,
+    code: code
+  };
+  emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, params)
+    .then(()=>{
+      statusEl.textContent='Tarea enviada exitosamente a la profe Selena!';
+      statusEl.className='send-status send-ok';
+      btnsEl.style.display='none';
+      markComplete(curLevel);
+      setSbar('Tarea enviada correctamente, '+name+'!','send');
+      addLog('Tarea enviada con exito: '+name+' ('+grade+') - '+level);
+      setTimeout(closeModal,3000);
+    })
+    .catch((err)=>{
+      statusEl.textContent='Error al enviar. Avisa a la profe Selena para que revise la configuracion.';
+      statusEl.className='send-status send-err';
+      confirmBtn.disabled=false;
+      console.error('EmailJS error:',err);
+    });
+}
 loadLevel(0);switchPage('lab');setTimeout(()=>drawMaze([]),100);ensurePlainCanvas();
 </script>
 </body>
